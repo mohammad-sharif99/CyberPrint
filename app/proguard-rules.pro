@@ -1,0 +1,1 @@
+-keep class com.cyberlap.btprint.print.BtPrintService { *; }

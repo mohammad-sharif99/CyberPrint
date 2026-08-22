@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_label">Print with CyberPrint</string>
+    <string name="section_printer">Printer</string>
+    <string name="no_printer">No printer selected</string>
+    <string name="choose_printer">Choose printer</string>
+    <string name="pair_new">Pair new printer</string>
+    <string name="section_paper">Paper &amp; settings</string>
+    <string name="paper_58">58mm (384 dots)</string>
+    <string name="paper_80">80mm (576 dots)</string>
+    <string name="darkness">Darkness</string>
+    <string name="feed_lines">Feed after print (lines)</string>
+    <string name="dither">Image dithering</string>
+    <string name="auto_cut">Auto cut</string>
+    <string name="cash_drawer">Open cash drawer after print</string>
+    <string name="slow_mode">Slow mode (weak printers)</string>
+    <string name="test_print">Test print</string>
+    <string name="enable_service">Enable print service (Chrome &amp; other apps)</string>
+    <string name="quick_text">Quick text</string>
+    <string name="print_text">Print text</string>
+    <string name="status_idle">Ready</string>
+    <string name="status_printing">Printing…</string>
+    <string name="status_done">Printed successfully</string>
+    <string name="status_error">Error: %1$s</string>
+    <string name="no_bonded">No paired printers. Pair your printer in Bluetooth settings first.</string>
+    <string name="need_permission">Bluetooth permission is required to connect to the printer.</string>
+    <string name="how_to_chrome">How to print from Chrome?\n1. Tap "Enable print service" and turn on CyberPrint.\n2. In Chrome: Menu → Share → Print.\n3. Pick your printer and choose 58 or 80mm paper.</string>
+    <string name="nothing_to_print">Nothing to print</string>
+    <string name="media_58_label">58mm thermal roll</string>
+    <string name="media_80_label">80mm thermal roll</string>
+    <string name="raster_mode">Image command</string>
+    <string name="raster_gs">Modern (GS v 0)</string>
+    <string name="raster_esc">Compatible (ESC *)</string>
+    <string name="raw_test">Raw ASCII test</string>
+</resources>
