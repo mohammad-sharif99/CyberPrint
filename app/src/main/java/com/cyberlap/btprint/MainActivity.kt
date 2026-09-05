@@ -55,8 +55,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensurePermission() {
+        val wanted = ArrayList<String>()
         if (Build.VERSION.SDK_INT >= 31 && !BtPrinter.hasPermission(this)) {
-            permLauncher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN))
+            wanted += Manifest.permission.BLUETOOTH_CONNECT
+            wanted += Manifest.permission.BLUETOOTH_SCAN
+        }
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) wanted += Manifest.permission.POST_NOTIFICATIONS
+        if (wanted.isNotEmpty()) permLauncher.launch(wanted.toTypedArray())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        prefs.lastError?.let {
+            b.status.text = getString(R.string.status_error, it)
+            prefs.lastError = null
         }
     }
 

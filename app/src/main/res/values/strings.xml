@@ -33,4 +33,6 @@
     <string name="raster_gs">حديثة (GS v 0)</string>
     <string name="raster_esc">متوافقة (ESC *)</string>
     <string name="raw_test">اختبار نص خام ASCII</string>
+    <string name="notif_channel_errors">أخطاء الطباعة</string>
+    <string name="notif_fail_title">فشلت مهمة الطباعة</string>
 </resources>

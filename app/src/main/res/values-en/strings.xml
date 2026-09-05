@@ -32,4 +32,6 @@
     <string name="raster_gs">Modern (GS v 0)</string>
     <string name="raster_esc">Compatible (ESC *)</string>
     <string name="raw_test">Raw ASCII test</string>
+    <string name="notif_channel_errors">Print errors</string>
+    <string name="notif_fail_title">Print job failed</string>
 </resources>

@@ -48,7 +48,12 @@ class BtPrinter(private val ctx: Context) {
         try { adapter.cancelDiscovery() } catch (_: Exception) {}
 
         val device = adapter.getRemoteDevice(mac)
-        val socket = connect(device)
+        val socket = try {
+            connect(device)
+        } catch (first: IOException) {
+            Thread.sleep(1500)
+            try { connect(device) } catch (_: IOException) { throw first }
+        }
         try {
             val out = socket.outputStream
             for (c in chunks) {

@@ -1,6 +1,11 @@
 package com.cyberlap.btprint.print
 
 import android.annotation.SuppressLint
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
@@ -13,13 +18,13 @@ import android.printservice.PrintJob
 import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.cyberlap.btprint.MainActivity
 import com.cyberlap.btprint.Prefs
 import com.cyberlap.btprint.R
 import com.cyberlap.btprint.bt.BtPrinter
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
 
 /**
  * System print service: every paired Bluetooth device shows up as a printer in
@@ -37,21 +42,20 @@ class BtPrintService : PrintService() {
         private val HEIGHTS_MM = intArrayOf(100, 150, 200, 300, 500)
         private const val PREFIX_58 = "CP58_"
         private const val PREFIX_80 = "CP80_"
+        private const val CHANNEL_ERRORS = "print_errors"
+
+        // Job threads are deliberately NOT tied to the service lifecycle: some OEMs
+        // unbind and destroy the print service the moment the print dialog closes,
+        // which would otherwise kill the Bluetooth transfer mid-job.
+        private val running = ConcurrentHashMap<String, Thread>()
     }
 
-    private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
-    private val running = ConcurrentHashMap<String, Future<*>>()
     private lateinit var prefs: Prefs
 
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
-    }
-
-    override fun onDestroy() {
-        executor.shutdownNow()
-        super.onDestroy()
     }
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
@@ -103,7 +107,7 @@ class BtPrintService : PrintService() {
     private fun mmToMils(mm: Int): Int = Math.round(mm / 25.4 * 1000).toInt()
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {
-        running.remove(printJob.id.toString())?.cancel(true)
+        running.remove(printJob.id.toString())?.interrupt()
         if (!printJob.isCancelled && !printJob.isCompleted && !printJob.isFailed) printJob.cancel()
     }
 
@@ -114,6 +118,7 @@ class BtPrintService : PrintService() {
         val mac = printJob.info.printerId?.localId
         val media = printJob.info.attributes.mediaSize
         val dots = if (media != null && media.id.startsWith(PREFIX_58)) Prefs.DOTS_58 else Prefs.DOTS_80
+        val jobLabel = printJob.info.label ?: "print job"
 
         // Pull the document fd now, on the main thread, before it is recycled.
         val pfd: ParcelFileDescriptor? = printJob.document.data
@@ -122,10 +127,11 @@ class BtPrintService : PrintService() {
             return
         }
 
-        val future = executor.submit {
+        val appCtx = applicationContext
+        val thread = Thread({
             var tmp: File? = null
             try {
-                val pipeline = PrintPipeline(this)
+                val pipeline = PrintPipeline(appCtx)
                 tmp = ParcelFileDescriptor.AutoCloseInputStream(pfd).use { pipeline.copyToTemp(it, "job_$key.pdf") }
                 val pages = ArrayList<Bitmap>()
                 pipeline.renderPdf(tmp, dots) { pages += it }
@@ -133,17 +139,45 @@ class BtPrintService : PrintService() {
                 val chunks = pipeline.buildJob(pages)
                 pages.forEach { it.recycle() }
                 pipeline.send(chunks, mac)
-                main.post { if (!printJob.isCancelled) printJob.complete() }
+                main.post { runCatching { if (!printJob.isCancelled) printJob.complete() } }
             } catch (e: InterruptedException) {
                 Log.i(TAG, "job cancelled")
             } catch (e: Exception) {
                 Log.e(TAG, "print failed", e)
-                main.post { if (!printJob.isCancelled) printJob.fail(e.message ?: e.javaClass.simpleName) }
+                val msg = e.message ?: e.javaClass.simpleName
+                Prefs(appCtx).lastError = msg
+                notifyFailure(appCtx, jobLabel, msg)
+                main.post { runCatching { if (!printJob.isCancelled) printJob.fail(msg) } }
             } finally {
                 running.remove(key)
                 tmp?.delete()
             }
+        }, "cyberprint-job-$key")
+        running[key] = thread
+        thread.start()
+    }
+
+    private fun notifyFailure(ctx: Context, jobLabel: CharSequence, msg: String) {
+        try {
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(
+                NotificationChannel(CHANNEL_ERRORS, ctx.getString(R.string.notif_channel_errors), NotificationManager.IMPORTANCE_HIGH)
+            )
+            val open = PendingIntent.getActivity(
+                ctx, 0, Intent(ctx, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val n = NotificationCompat.Builder(ctx, CHANNEL_ERRORS)
+                .setSmallIcon(android.R.drawable.stat_notify_error)
+                .setContentTitle(ctx.getString(R.string.notif_fail_title))
+                .setContentText("$jobLabel: $msg")
+                .setStyle(NotificationCompat.BigTextStyle().bigText("$jobLabel: $msg"))
+                .setContentIntent(open)
+                .setAutoCancel(true)
+                .build()
+            nm.notify(msg.hashCode(), n)
+        } catch (e: Exception) {
+            Log.w(TAG, "cannot post notification", e)
         }
-        running[key] = future
     }
 }

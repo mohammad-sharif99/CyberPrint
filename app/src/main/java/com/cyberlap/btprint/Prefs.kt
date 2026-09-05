@@ -46,6 +46,11 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("slow", false)
         set(v) = sp.edit { putBoolean("slow", v) }
 
+    /** Last print-service failure, surfaced in MainActivity. */
+    var lastError: String?
+        get() = sp.getString("lastError", null)
+        set(v) = sp.edit { putString("lastError", v) }
+
     /** 0 = GS v 0 raster (modern), 1 = ESC * bit-image (legacy/compatible). */
     var rasterMode: Int
         get() = sp.getInt("raster", 0)
