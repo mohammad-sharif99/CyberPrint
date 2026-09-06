@@ -67,7 +67,7 @@ class BtPrinter(private val ctx: Context) {
             // buffer fills and the host disconnects, they stall mid-buffer and
             // dump the remainder at the start of the next job. Feeding roughly
             // as fast as the mechanism prints keeps the buffer near-empty.
-            val paceBytesPerMs = if (interChunkDelayMs > 0) 6 else 16
+            val paceBytesPerMs = if (interChunkDelayMs > 0) 4 else 10
             // Swallow anything the printer may have sent earlier so the
             // handshake below reads only its own reply.
             try { while (socket.inputStream.available() > 0) socket.inputStream.read() } catch (_: Exception) {}
@@ -90,7 +90,9 @@ class BtPrinter(private val ctx: Context) {
             AppLog.i("BT", "all $totalBytes bytes written in ${tSent - t0}ms; waiting for GS r reply")
             out.write(byteArrayOf(0x1D, 'r'.code.toByte(), 1))
             out.flush()
-            val maxWaitMs = (3_000L + totalBytes / paceBytesPerMs).coerceAtMost(90_000L)
+            // Budget the wait on a pessimistic ~4 KB/s print speed for dense
+            // raster: closing early is what loses the tail (feed/cut included).
+            val maxWaitMs = (3_000L + totalBytes / 4).coerceAtMost(120_000L)
             val started = System.currentTimeMillis()
             var acked = false
             val input = socket.inputStream
