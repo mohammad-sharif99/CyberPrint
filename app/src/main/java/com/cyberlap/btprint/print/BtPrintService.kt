@@ -125,8 +125,8 @@ class BtPrintService : PrintService() {
         val l80 = getString(R.string.media_80_label)
         for (hmm in HEIGHTS_MM) {
             val hMils = mmToMils(hmm)
-            b.addMediaSize(PrintAttributes.MediaSize("$PREFIX_58$hmm", "$l58 × ${hmm}mm", W58_MILS, hMils), defaultIs58 && hmm == 200)
-            b.addMediaSize(PrintAttributes.MediaSize("$PREFIX_80$hmm", "$l80 × ${hmm}mm", W80_MILS, hMils), !defaultIs58 && hmm == 200)
+            b.addMediaSize(PrintAttributes.MediaSize("$PREFIX_58$hmm", "$l58 × ${hmm}mm", W58_MILS, hMils), defaultIs58 && hmm == 500)
+            b.addMediaSize(PrintAttributes.MediaSize("$PREFIX_80$hmm", "$l80 × ${hmm}mm", W80_MILS, hMils), !defaultIs58 && hmm == 500)
         }
         b.addResolution(PrintAttributes.Resolution("203", "203 dpi", DPI, DPI), true)
         b.setColorModes(PrintAttributes.COLOR_MODE_MONOCHROME, PrintAttributes.COLOR_MODE_MONOCHROME)
@@ -158,7 +158,8 @@ class BtPrintService : PrintService() {
         }
 
         val appCtx = applicationContext
-        val thread = Thread({
+        val work = Runnable {
+            running[key] = Thread.currentThread()
             var tmp: File? = null
             try {
                 val pipeline = PrintPipeline(appCtx)
@@ -182,9 +183,8 @@ class BtPrintService : PrintService() {
                 running.remove(key)
                 tmp?.delete()
             }
-        }, "cyberprint-job-$key")
-        running[key] = thread
-        thread.start()
+        }
+        JobRunnerService.enqueue(appCtx, work)
     }
 
     private fun notifyFailure(ctx: Context, jobLabel: CharSequence, msg: String) {

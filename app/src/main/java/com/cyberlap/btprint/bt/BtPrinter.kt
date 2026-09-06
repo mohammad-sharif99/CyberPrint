@@ -56,6 +56,7 @@ class BtPrinter(private val ctx: Context) {
         }
         try {
             val out = socket.outputStream
+            val totalBytes = chunks.sumOf { it.size }
             for (c in chunks) {
                 var off = 0
                 while (off < c.size) {
@@ -67,8 +68,12 @@ class BtPrinter(private val ctx: Context) {
                 out.flush()
             }
             out.flush()
-            // Give the BT stack time to drain before we tear the link down.
-            Thread.sleep(if (interChunkDelayMs > 0) 1500 else 700)
+            // Closing the socket discards anything still queued in the Bluetooth
+            // stack, which truncated long receipts (the tail then surfaced at the
+            // start of the next job). Wait proportionally to the job size
+            // (~12 KB/s worst-case printer throughput) before tearing down.
+            val drainMs = (500L + totalBytes / 12).coerceAtMost(30_000L)
+            Thread.sleep(if (interChunkDelayMs > 0) drainMs + 1000 else drainMs)
         } finally {
             try { socket.close() } catch (_: Exception) {}
         }

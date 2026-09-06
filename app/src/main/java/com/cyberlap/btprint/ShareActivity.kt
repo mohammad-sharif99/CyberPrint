@@ -33,8 +33,8 @@ class ShareActivity : AppCompatActivity() {
             val result = withContext(Dispatchers.IO) {
                 runCatching { handle(incoming, prefs.dots) }
             }
-            result.onSuccess {
-                Toast.makeText(this@ShareActivity, R.string.status_done, Toast.LENGTH_SHORT).show()
+            result.onSuccess { printed ->
+                if (printed) Toast.makeText(this@ShareActivity, R.string.status_done, Toast.LENGTH_SHORT).show()
             }.onFailure {
                 Toast.makeText(this@ShareActivity, getString(R.string.status_error, it.message), Toast.LENGTH_LONG).show()
             }
@@ -42,7 +42,8 @@ class ShareActivity : AppCompatActivity() {
         }
     }
 
-    private fun handle(intent: Intent, dots: Int) {
+    /** @return true when something was printed here (false = routed elsewhere). */
+    private fun handle(intent: Intent, dots: Int): Boolean {
         val pipeline = PrintPipeline(this)
         val bitmaps = ArrayList<Bitmap>()
         val uris = ArrayList<Uri>()
@@ -53,6 +54,15 @@ class ShareActivity : AppCompatActivity() {
                 (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uris += it }
                 if (uris.isEmpty()) {
                     val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+                    val url = text?.let { extractUrl(it) }
+                    if (url != null) {
+                        // Chrome shares the page URL; render and print the page itself.
+                        startActivity(
+                            Intent(this, WebPrintActivity::class.java)
+                                .putExtra(WebPrintActivity.EXTRA_URL, url)
+                        )
+                        return false
+                    }
                     val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT)
                     val full = listOfNotNull(subject, text).joinToString("\n\n")
                     if (full.isNotBlank()) bitmaps += TextRenderer.render(full, dots)
@@ -83,6 +93,17 @@ class ShareActivity : AppCompatActivity() {
         if (bitmaps.isEmpty()) throw IllegalStateException(getString(R.string.nothing_to_print))
         pipeline.printBitmaps(bitmaps, dots)
         bitmaps.forEach { it.recycle() }
+        return true
+    }
+
+    /** Returns the URL when the shared text is (or contains only) a web link. */
+    private fun extractUrl(text: String): String? {
+        val t = text.trim()
+        val m = Regex("https?://\\S+").find(t) ?: return null
+        // Treat as a page share only when the text is essentially just the link
+        // (Chrome sends "title\nurl" or the bare url).
+        val rest = t.removeRange(m.range).trim()
+        return if (rest.length <= 120 && !rest.contains(Regex("https?://"))) m.value else null
     }
 
     private fun guessType(uri: Uri): String {

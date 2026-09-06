@@ -35,4 +35,7 @@
     <string name="raw_test">اختبار نص خام ASCII</string>
     <string name="notif_channel_errors">أخطاء الطباعة</string>
     <string name="notif_fail_title">فشلت مهمة الطباعة</string>
+    <string name="notif_channel_progress">حالة الطباعة</string>
+    <string name="web_print_title">طباعة صفحة ويب</string>
+    <string name="print_page">طباعة الصفحة</string>
 </resources>

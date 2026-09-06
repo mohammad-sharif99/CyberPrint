@@ -34,4 +34,7 @@
     <string name="raw_test">Raw ASCII test</string>
     <string name="notif_channel_errors">Print errors</string>
     <string name="notif_fail_title">Print job failed</string>
+    <string name="notif_channel_progress">Print progress</string>
+    <string name="web_print_title">Print web page</string>
+    <string name="print_page">Print page</string>
 </resources>
