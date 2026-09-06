@@ -86,13 +86,21 @@ class BtPrinter(private val ctx: Context) {
             // been processed. A reply therefore proves the receipt is fully
             // printed and the link can be closed. Printers that never answer
             // fall back to a size-proportional timed drain.
+            // Tail padding. Some printers' Bluetooth modules forward data to the
+            // print engine in fixed-size blocks and hold the last partial block
+            // until more data arrives - so the final feed/cut only printed at the
+            // start of the NEXT job, regardless of how long we waited. Push it
+            // through with 2 KB of no-op commands (ESC a 0 = align left, no output).
+            val pad = ByteArray(2049) { i -> if (i % 3 == 0) 0x1B else if (i % 3 == 1) 'a'.code.toByte() else 0 }
+            out.write(pad)
+            out.flush()
             val tSent = System.currentTimeMillis()
-            AppLog.i("BT", "all $totalBytes bytes written in ${tSent - t0}ms; waiting for GS r reply")
+            AppLog.i("BT", "all $totalBytes bytes + ${pad.size} pad written in ${tSent - t0}ms; waiting for GS r reply")
             out.write(byteArrayOf(0x1D, 'r'.code.toByte(), 1))
             out.flush()
-            // Budget the wait on a pessimistic ~4 KB/s print speed for dense
-            // raster: closing early is what loses the tail (feed/cut included).
-            val maxWaitMs = (3_000L + totalBytes / 4).coerceAtMost(120_000L)
+            // Printers that never answer (log shows this one does not) fall
+            // back to a timed drain sized on a ~8 KB/s print speed.
+            val maxWaitMs = (2_000L + totalBytes / 8).coerceAtMost(60_000L)
             val started = System.currentTimeMillis()
             var acked = false
             val input = socket.inputStream
