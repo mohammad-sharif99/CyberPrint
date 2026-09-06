@@ -100,8 +100,8 @@ object EscPos {
         if (buf.isNotEmpty() && buf[buf.size - 1] == 0x10.toByte()) buf[buf.size - 1] = 0
     }
 
-    /** GS V 66 n — partial cut with feed (most common). */
-    fun cut() = byteArrayOf(GS, 'V'.code.toByte(), 66, 0)
+    /** Three line feeds then GS V 1 (partial cut) — the form most firmwares honour. */
+    fun cut() = byteArrayOf(0x0A, 0x0A, 0x0A, GS, 'V'.code.toByte(), 1)
 
     /** ESC p m t1 t2 — open cash drawer pin 2. */
     fun openDrawer() = byteArrayOf(ESC, 'p'.code.toByte(), 0, 60, 120.toByte())

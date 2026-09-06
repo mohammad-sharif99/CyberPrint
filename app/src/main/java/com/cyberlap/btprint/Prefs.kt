@@ -46,6 +46,16 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("slow", false)
         set(v) = sp.edit { putBoolean("slow", v) }
 
+    /** Keep the Bluetooth link open between jobs (closed after 60 s idle). */
+    var keepConnection: Boolean
+        get() = sp.getBoolean("keepConn", true)
+        set(v) = sp.edit { putBoolean("keepConn", v) }
+
+    /** Send the whole page as ONE GS v 0 command instead of horizontal bands. */
+    var singleRaster: Boolean
+        get() = sp.getBoolean("singleRaster", true)
+        set(v) = sp.edit { putBoolean("singleRaster", v) }
+
     /** Last print-service failure, surfaced in MainActivity. */
     var lastError: String?
         get() = sp.getString("lastError", null)

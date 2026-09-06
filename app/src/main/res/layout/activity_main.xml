@@ -193,6 +193,16 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/slow_mode" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/swKeep"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/keep_connection" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/swSingle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/single_raster" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

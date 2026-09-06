@@ -53,8 +53,13 @@ class PrintPipeline(private val ctx: Context) {
             var mono: MonoBitmap = ImageUtils.toMono(bmp, prefs.darkness, prefs.dither)
             // Trim trailing whitespace on the last page only; inner pages keep layout.
             if (trimBlank && idx == bitmaps.lastIndex) mono = mono.trimBottom()
+            val band = when {
+                prefs.slowMode -> 32
+                prefs.singleRaster -> Int.MAX_VALUE
+                else -> 64
+            }
             chunks += if (prefs.rasterMode == 1) EscPos.bitImage(mono)
-                      else EscPos.raster(mono, bandRows = if (prefs.slowMode) 32 else 64)
+                      else EscPos.raster(mono, bandRows = band)
         }
         if (prefs.feedLines > 0) chunks += EscPos.feed(prefs.feedLines)
         if (prefs.autoCut) chunks += EscPos.cut()
@@ -69,8 +74,8 @@ class PrintPipeline(private val ctx: Context) {
         // Pacing is opt-in (slow mode): device logs proved link timing is not
         // what loses job tails, so full-speed transfer is the default.
         val pace = prefs.slowMode
-        AppLog.i("Pipeline", "send -> $mac chunks=${chunks.size} bytes=${chunks.sumOf { it.size }} pace=$pace slow=${prefs.slowMode}")
-        BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0, pace)
+        AppLog.i("Pipeline", "send -> $mac chunks=${chunks.size} bytes=${chunks.sumOf { it.size }} pace=$pace slow=${prefs.slowMode} keepOpen=${prefs.keepConnection} single=${prefs.singleRaster}")
+        BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0, pace, prefs.keepConnection)
         AppLog.i("Pipeline", "send complete")
     }
 

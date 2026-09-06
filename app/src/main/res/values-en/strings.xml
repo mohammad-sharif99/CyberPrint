@@ -43,4 +43,6 @@
     <string name="log_clear">Clear</string>
     <string name="log_empty">Log is empty</string>
     <string name="open_log">Event log (diagnostics)</string>
+    <string name="keep_connection">Keep connection open between jobs (faster)</string>
+    <string name="single_raster">Send image as one command (not bands)</string>
 </resources>

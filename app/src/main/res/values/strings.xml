@@ -44,4 +44,6 @@
     <string name="log_clear">مسح</string>
     <string name="log_empty">السجل فارغ</string>
     <string name="open_log">سجل الأحداث (للتشخيص)</string>
+    <string name="keep_connection">إبقاء الاتصال مفتوحًا بين الطباعات (أسرع)</string>
+    <string name="single_raster">إرسال الصورة كأمر واحد (بدل شرائح)</string>
 </resources>

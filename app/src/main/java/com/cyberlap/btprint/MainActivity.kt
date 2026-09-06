@@ -99,6 +99,10 @@ class MainActivity : AppCompatActivity() {
         b.swDrawer.setOnCheckedChangeListener { _, c -> prefs.cashDrawer = c }
         b.swSlow.isChecked = prefs.slowMode
         b.swSlow.setOnCheckedChangeListener { _, c -> prefs.slowMode = c }
+        b.swKeep.isChecked = prefs.keepConnection
+        b.swKeep.setOnCheckedChangeListener { _, c -> prefs.keepConnection = c; if (!c) BtPrinter.disconnect() }
+        b.swSingle.isChecked = prefs.singleRaster
+        b.swSingle.setOnCheckedChangeListener { _, c -> prefs.singleRaster = c }
     }
 
     private fun refreshPrinterLabel() {
@@ -127,6 +131,7 @@ class MainActivity : AppCompatActivity() {
             .setItems(labels) { _, i ->
                 prefs.printerMac = devices[i].address
                 prefs.printerName = devices[i].name
+                BtPrinter.disconnect()
                 refreshPrinterLabel()
             }
             .show()
