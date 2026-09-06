@@ -85,22 +85,36 @@ class BtPrintService : PrintService() {
             }
         }
         override fun onStopPrinterDiscovery() { AppLog.i(TAG, "discovery stop") }
-        override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
+        /**
+         * The print dialog remembers the last printer and shows it as
+         * "not available" until the service confirms it here. Answer at once
+         * for every remembered printer that is still paired.
+         */
+        override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {
+            AppLog.i(TAG, "validate ${printerIds.joinToString { it.localId }}")
+            reassert(printerIds, "validate")
+        }
         override fun onStartPrinterStateTracking(printerId: PrinterId) {
             AppLog.i(TAG, "tracking ${printerId.localId}")
-            // Re-assert capabilities for ROMs that only accept them during tracking.
+            reassert(listOf(printerId), "tracking")
+        }
+        @SuppressLint("MissingPermission")
+        private fun reassert(ids: List<PrinterId>, phase: String) {
             try {
-                val dev = BtPrinter.bondedDevices(this@BtPrintService).firstOrNull { it.address == printerId.localId } ?: return
-                val name = try { dev.name ?: dev.address } catch (_: SecurityException) { dev.address }
-                addPrinters(listOf(
-                    PrinterInfo.Builder(printerId, name, PrinterInfo.STATUS_IDLE)
+                val bonded = BtPrinter.bondedDevices(this@BtPrintService)
+                val infos = ids.mapNotNull { id ->
+                    val dev = bonded.firstOrNull { it.address == id.localId } ?: return@mapNotNull null
+                    val name = try { dev.name ?: dev.address } catch (_: SecurityException) { dev.address }
+                    PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
                         .setDescription("Bluetooth • ${dev.address}")
-                        .setCapabilities(capabilities(printerId))
+                        .setCapabilities(capabilities(id))
                         .build()
-                ))
+                }
+                if (infos.isNotEmpty()) addPrinters(infos)
+                AppLog.i(TAG, "$phase: re-added ${infos.size}/${ids.size}")
             } catch (e: Exception) {
-                Log.e(TAG, "state tracking failed", e)
-                prefs.lastError = "tracking: ${e.message ?: e.javaClass.simpleName}"
+                AppLog.e(TAG, "$phase failed", e)
+                prefs.lastError = "$phase: ${e.message ?: e.javaClass.simpleName}"
             }
         }
         override fun onStopPrinterStateTracking(printerId: PrinterId) {}
