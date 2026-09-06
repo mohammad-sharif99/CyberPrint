@@ -64,7 +64,8 @@ class PrintPipeline(private val ctx: Context) {
     @Throws(IOException::class)
     fun send(chunks: List<ByteArray>, macOverride: String? = null) {
         val mac = macOverride ?: prefs.printerMac ?: throw IOException("No printer selected")
-        BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0)
+        val pace = prefs.rasterMode == 0 || prefs.slowMode
+        BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0, pace)
     }
 
     /** Plain-ASCII diagnostic: proves whether the printer speaks ESC/POS at all. */

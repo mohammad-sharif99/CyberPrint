@@ -62,12 +62,32 @@ object EscPos {
                     chunk[o++] = b.toByte()
                 }
             }
+            scrubRealtime(chunk, 5)
             chunk[o] = 0x0A
             out += chunk
             y += 24
         }
         out += lineSpacingDefault()
         return out
+    }
+
+    /**
+     * Image bytes are arbitrary, so they sometimes contain DLE EOT (10 04),
+     * DLE ENQ (10 05) or DLE DC4 (10 14). Many firmwares execute those as
+     * real-time commands wherever they appear - DLE ENQ 2 even clears the
+     * buffer - which makes prints fail depending on content. Clearing the
+     * single pixel that forms the DLE byte is invisible and removes the risk.
+     */
+    fun scrubRealtime(buf: ByteArray, from: Int) {
+        var i = from
+        while (i < buf.size - 1) {
+            if (buf[i] == 0x10.toByte()) {
+                val n = buf[i + 1].toInt()
+                if (n == 0x04 || n == 0x05 || n == 0x14) buf[i] = 0
+            }
+            i++
+        }
+        if (buf.isNotEmpty() && buf[buf.size - 1] == 0x10.toByte()) buf[buf.size - 1] = 0
     }
 
     /** GS V 66 n — partial cut with feed (most common). */
@@ -94,6 +114,7 @@ object EscPos {
             val chunk = ByteArray(header.size + rows * bpr)
             System.arraycopy(header, 0, chunk, 0, header.size)
             System.arraycopy(img.data, y * bpr, chunk, header.size, rows * bpr)
+            scrubRealtime(chunk, header.size)
             out.add(chunk)
             y += rows
         }

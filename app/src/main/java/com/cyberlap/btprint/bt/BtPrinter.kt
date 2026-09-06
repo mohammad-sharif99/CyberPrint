@@ -41,7 +41,7 @@ class BtPrinter(private val ctx: Context) {
      */
     @SuppressLint("MissingPermission")
     @Throws(IOException::class)
-    fun print(mac: String, chunks: List<ByteArray>, interChunkDelayMs: Long = 0) {
+    fun print(mac: String, chunks: List<ByteArray>, interChunkDelayMs: Long = 0, pace: Boolean = true) {
         if (!hasPermission(ctx)) throw IOException("Bluetooth permission not granted")
         val adapter = adapter(ctx) ?: throw IOException("Bluetooth not available")
         if (!adapter.isEnabled) throw IOException("Bluetooth is off")
@@ -74,7 +74,7 @@ class BtPrinter(private val ctx: Context) {
                     off += n
                 }
                 out.flush()
-                Thread.sleep((c.size / paceBytesPerMs).coerceAtLeast(3).toLong())
+                if (pace) Thread.sleep((c.size / paceBytesPerMs).coerceAtLeast(3).toLong())
             }
             // End-of-job handshake: GS r 1 is a NON-real-time status request,
             // so the printer answers only after everything queued before it has
@@ -88,7 +88,13 @@ class BtPrinter(private val ctx: Context) {
             var acked = false
             val input = socket.inputStream
             while (System.currentTimeMillis() - started < maxWaitMs) {
-                if (input.available() > 0) { input.read(); acked = true; break }
+                if (input.available() > 0) {
+                    val b = input.read()
+                    // GS r replies have bit 4 = 0; real-time DLE EOT replies
+                    // (possibly triggered earlier) have bit 4 = 1 - ignore those.
+                    if (b >= 0 && (b and 0x10) == 0) { acked = true; break }
+                    continue
+                }
                 Thread.sleep(50)
             }
             // Short settle after ack; without ack the loop already waited the full budget.
