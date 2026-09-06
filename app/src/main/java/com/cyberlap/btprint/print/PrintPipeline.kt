@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import com.cyberlap.btprint.AppLog
 import com.cyberlap.btprint.Prefs
 import com.cyberlap.btprint.bt.BtPrinter
 import com.cyberlap.btprint.escpos.EscPos
@@ -58,6 +59,7 @@ class PrintPipeline(private val ctx: Context) {
         if (prefs.feedLines > 0) chunks += EscPos.feed(prefs.feedLines)
         if (prefs.autoCut) chunks += EscPos.cut()
         if (prefs.cashDrawer) chunks += EscPos.openDrawer()
+        AppLog.i("Pipeline", "job built: pages=${bitmaps.size} sizes=${bitmaps.joinToString { "${it.width}x${it.height}" }} raster=${if (prefs.rasterMode == 1) "ESC*" else "GSv0"} dark=${prefs.darkness} dither=${prefs.dither} feed=${prefs.feedLines} cut=${prefs.autoCut} bytes=${chunks.sumOf { it.size }}")
         return chunks
     }
 
@@ -65,7 +67,9 @@ class PrintPipeline(private val ctx: Context) {
     fun send(chunks: List<ByteArray>, macOverride: String? = null) {
         val mac = macOverride ?: prefs.printerMac ?: throw IOException("No printer selected")
         val pace = prefs.rasterMode == 0 || prefs.slowMode
+        AppLog.i("Pipeline", "send -> $mac chunks=${chunks.size} bytes=${chunks.sumOf { it.size }} pace=$pace slow=${prefs.slowMode}")
         BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0, pace)
+        AppLog.i("Pipeline", "send complete")
     }
 
     /** Plain-ASCII diagnostic: proves whether the printer speaks ESC/POS at all. */

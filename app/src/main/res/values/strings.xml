@@ -38,4 +38,10 @@
     <string name="notif_channel_progress">حالة الطباعة</string>
     <string name="web_print_title">طباعة صفحة ويب</string>
     <string name="print_page">طباعة الصفحة</string>
+    <string name="log_title">سجل الأحداث</string>
+    <string name="log_share">مشاركة السجل</string>
+    <string name="log_refresh">تحديث</string>
+    <string name="log_clear">مسح</string>
+    <string name="log_empty">السجل فارغ</string>
+    <string name="open_log">سجل الأحداث (للتشخيص)</string>
 </resources>

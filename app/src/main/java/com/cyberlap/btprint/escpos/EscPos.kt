@@ -28,7 +28,17 @@ object EscPos {
     val init = byteArrayOf(ESC, '@'.code.toByte())
     fun alignLeft() = byteArrayOf(ESC, 'a'.code.toByte(), 0)
     fun alignCenter() = byteArrayOf(ESC, 'a'.code.toByte(), 1)
-    fun feed(lines: Int) = byteArrayOf(ESC, 'd'.code.toByte(), lines.coerceIn(0, 255).toByte())
+    /**
+     * Paper feed after the job. Sent three ways because firmwares differ in
+     * which they honour: plain LFs, ESC d n (lines) and ESC J n (dots).
+     */
+    fun feed(lines: Int): ByteArray {
+        val n = lines.coerceIn(0, 255)
+        val lf = ByteArray(n) { 0x0A }
+        val escD = byteArrayOf(ESC, 'd'.code.toByte(), n.toByte())
+        val escJ = byteArrayOf(ESC, 'J'.code.toByte(), (n * 24).coerceAtMost(255).toByte())
+        return lf + escD + escJ
+    }
     fun lineSpacingDefault() = byteArrayOf(ESC, '2'.code.toByte())
     fun lineSpacing(n: Int) = byteArrayOf(ESC, '3'.code.toByte(), n.toByte())
     fun text(s: String) = s.replace("\n", "\r\n").toByteArray(Charsets.US_ASCII)

@@ -37,4 +37,10 @@
     <string name="notif_channel_progress">Print progress</string>
     <string name="web_print_title">Print web page</string>
     <string name="print_page">Print page</string>
+    <string name="log_title">Event log</string>
+    <string name="log_share">Share log</string>
+    <string name="log_refresh">Refresh</string>
+    <string name="log_clear">Clear</string>
+    <string name="log_empty">Log is empty</string>
+    <string name="open_log">Event log (diagnostics)</string>
 </resources>

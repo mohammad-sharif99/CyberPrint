@@ -19,6 +19,7 @@ import android.printservice.PrintService
 import android.printservice.PrinterDiscoverySession
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.cyberlap.btprint.AppLog
 import com.cyberlap.btprint.MainActivity
 import com.cyberlap.btprint.Prefs
 import com.cyberlap.btprint.R
@@ -56,10 +57,14 @@ class BtPrintService : PrintService() {
     override fun onCreate() {
         super.onCreate()
         prefs = Prefs(this)
+        AppLog.init(this)
+        AppLog.i(TAG, "service created")
     }
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
+            AppLog.i(TAG, "discovery start (priority=${priorityList.size})")
+            JobRunnerService.keepAlive(this@BtPrintService)
             // Any exception here makes the OS show "failed to add printers" with no
             // detail, so trap everything and surface it in the app instead.
             try {
@@ -68,19 +73,21 @@ class BtPrintService : PrintService() {
                     return
                 }
                 val list = buildPrinters()
+                AppLog.i(TAG, "discovery: ${list.size} printers: ${list.joinToString { it.name }}")
                 if (list.isEmpty()) {
                     prefs.lastError = "No paired Bluetooth printers visible to print service"
                     return
                 }
                 addPrinters(list)
             } catch (e: Exception) {
-                Log.e(TAG, "printer discovery failed", e)
+                AppLog.e(TAG, "printer discovery failed", e)
                 prefs.lastError = "discovery: ${e.message ?: e.javaClass.simpleName}"
             }
         }
-        override fun onStopPrinterDiscovery() {}
+        override fun onStopPrinterDiscovery() { AppLog.i(TAG, "discovery stop") }
         override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
         override fun onStartPrinterStateTracking(printerId: PrinterId) {
+            AppLog.i(TAG, "tracking ${printerId.localId}")
             // Re-assert capabilities for ROMs that only accept them during tracking.
             try {
                 val dev = BtPrinter.bondedDevices(this@BtPrintService).firstOrNull { it.address == printerId.localId } ?: return
@@ -137,6 +144,7 @@ class BtPrintService : PrintService() {
     private fun mmToMils(mm: Int): Int = Math.round(mm / 25.4 * 1000).toInt()
 
     override fun onRequestCancelPrintJob(printJob: PrintJob) {
+        AppLog.i(TAG, "cancel requested for ${printJob.id}")
         running.remove(printJob.id.toString())?.interrupt()
         if (!printJob.isCancelled && !printJob.isCompleted && !printJob.isFailed) printJob.cancel()
     }
@@ -152,7 +160,9 @@ class BtPrintService : PrintService() {
 
         // Pull the document fd now, on the main thread, before it is recycled.
         val pfd: ParcelFileDescriptor? = printJob.document.data
+        AppLog.i(TAG, "job queued id=$key label=$jobLabel printer=$mac media=${media?.id} dots=$dots pages=${printJob.document.info.pageCount} fd=${pfd != null}")
         if (pfd == null || mac == null) {
+            AppLog.e(TAG, "job $key has no data / printer")
             printJob.fail("No document data")
             return
         }
@@ -164,17 +174,20 @@ class BtPrintService : PrintService() {
             try {
                 val pipeline = PrintPipeline(appCtx)
                 tmp = ParcelFileDescriptor.AutoCloseInputStream(pfd).use { pipeline.copyToTemp(it, "job_$key.pdf") }
+                AppLog.i(TAG, "job $key pdf=${tmp.length()} bytes")
                 val pages = ArrayList<Bitmap>()
                 pipeline.renderPdf(tmp, dots) { pages += it }
+                AppLog.i(TAG, "job $key rendered ${pages.size} page(s)")
                 if (Thread.currentThread().isInterrupted) throw InterruptedException()
                 val chunks = pipeline.buildJob(pages)
                 pages.forEach { it.recycle() }
                 pipeline.send(chunks, mac)
+                AppLog.i(TAG, "job $key complete")
                 main.post { runCatching { if (!printJob.isCancelled) printJob.complete() } }
             } catch (e: InterruptedException) {
-                Log.i(TAG, "job cancelled")
+                AppLog.i(TAG, "job $key cancelled")
             } catch (e: Exception) {
-                Log.e(TAG, "print failed", e)
+                AppLog.e(TAG, "job $key failed", e)
                 val msg = e.message ?: e.javaClass.simpleName
                 Prefs(appCtx).lastError = msg
                 notifyFailure(appCtx, jobLabel, msg)

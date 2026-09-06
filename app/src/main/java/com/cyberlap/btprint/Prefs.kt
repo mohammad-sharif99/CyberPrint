@@ -27,7 +27,7 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit { putInt("dark", v.coerceIn(40, 230)) }
 
     var feedLines: Int
-        get() = sp.getInt("feed", 3)
+        get() = sp.getInt("feed", 5)
         set(v) = sp.edit { putInt("feed", v.coerceIn(0, 12)) }
 
     var dither: Boolean

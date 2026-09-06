@@ -216,6 +216,13 @@
                 android:layout_height="wrap_content"
                 android:text="@string/raw_test" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLog"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/open_log" />
+
             <!-- Quick text -->
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"

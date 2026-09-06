@@ -36,6 +36,8 @@ class MainActivity : AppCompatActivity() {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         prefs = Prefs(this)
+        AppLog.init(this)
+        AppLog.i("Main", "opened; printer=${prefs.printerMac} paper=${prefs.paperMm} raster=${prefs.rasterMode} slow=${prefs.slowMode} feed=${prefs.feedLines} cut=${prefs.autoCut}")
         ensurePermission()
         bindSettings()
 
@@ -45,6 +47,7 @@ class MainActivity : AppCompatActivity() {
             try { startActivity(Intent(Settings.ACTION_PRINT_SETTINGS)) }
             catch (_: Exception) { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
+        b.btnLog.setOnClickListener { startActivity(Intent(this, LogActivity::class.java)) }
         b.btnRawTest.setOnClickListener { runPrint { PrintPipeline(this).printRawTest() } }
         b.btnTest.setOnClickListener { printBitmapsAsync { listOf(TextRenderer.render(testReceipt(), prefs.dots)) } }
         b.btnPrintText.setOnClickListener {
@@ -141,8 +144,8 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) { runCatching(block) }
             setBusy(false)
-            r.onSuccess { b.status.setText(R.string.status_done) }
-                .onFailure { b.status.text = getString(R.string.status_error, it.message) }
+            r.onSuccess { b.status.setText(R.string.status_done); AppLog.i("Main", "local print done") }
+                .onFailure { b.status.text = getString(R.string.status_error, it.message); AppLog.e("Main", "local print failed", it) }
         }
     }
 

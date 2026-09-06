@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import com.cyberlap.btprint.AppLog
 import com.cyberlap.btprint.R
 import java.util.concurrent.ConcurrentLinkedQueue
 
@@ -26,29 +27,60 @@ class JobRunnerService : Service() {
         private const val CHANNEL = "print_progress"
         private const val NOTIF_ID = 10
         private val queue = ConcurrentLinkedQueue<Runnable>()
+        private const val ACTION_KEEPALIVE = "keepalive"
+        private const val KEEPALIVE_MS = 120_000L
 
         fun enqueue(ctx: Context, work: Runnable) {
             queue.add(work)
-            ContextCompat.startForegroundService(ctx, Intent(ctx, JobRunnerService::class.java))
+            try {
+                ContextCompat.startForegroundService(ctx, Intent(ctx, JobRunnerService::class.java))
+            } catch (e: Exception) {
+                AppLog.e("Runner", "cannot start foreground service, running inline", e)
+                Thread(work, "cyberprint-fallback").start()
+            }
+        }
+
+        /** Keep the process un-frozen while the system print dialog is open. */
+        fun keepAlive(ctx: Context) {
+            try {
+                ContextCompat.startForegroundService(ctx, Intent(ctx, JobRunnerService::class.java).setAction(ACTION_KEEPALIVE))
+            } catch (e: Exception) {
+                AppLog.e("Runner", "keepalive refused: ${e.message}")
+            }
         }
     }
 
     @Volatile private var worker: Thread? = null
+    @Volatile private var keepUntil = 0L
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startInForeground()
-        if (worker?.isAlive != true) {
+        if (intent?.action == ACTION_KEEPALIVE) {
+            keepUntil = System.currentTimeMillis() + KEEPALIVE_MS
+            AppLog.i("Runner", "keepalive for ${KEEPALIVE_MS / 1000}s")
+            handler.postDelayed({ stopIfIdle() }, KEEPALIVE_MS + 500)
+        }
+        if (queue.isNotEmpty() && worker?.isAlive != true) {
             worker = Thread({
                 while (true) {
                     val work = queue.poll() ?: break
-                    try { work.run() } catch (_: Throwable) {}
+                    try { work.run() } catch (t: Throwable) { AppLog.e("Runner", "job crashed", t) }
                 }
-                stopSelf()
+                handler.post { stopIfIdle() }
             }, "cyberprint-runner").also { it.start() }
         }
         return START_NOT_STICKY
+    }
+
+    private fun stopIfIdle() {
+        val busy = worker?.isAlive == true || queue.isNotEmpty()
+        if (!busy && System.currentTimeMillis() >= keepUntil) {
+            AppLog.i("Runner", "idle, stopping")
+            stopSelf()
+        }
     }
 
     private fun startInForeground() {

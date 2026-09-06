@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.cyberlap.btprint.AppLog
 import java.io.IOException
 import java.util.UUID
 
@@ -48,12 +49,16 @@ class BtPrinter(private val ctx: Context) {
         try { adapter.cancelDiscovery() } catch (_: Exception) {}
 
         val device = adapter.getRemoteDevice(mac)
+        AppLog.i("BT", "connecting to $mac")
+        val t0 = System.currentTimeMillis()
         val socket = try {
             connect(device)
         } catch (first: IOException) {
+            AppLog.e("BT", "connect failed (${first.message}), retrying in 1.5s")
             Thread.sleep(1500)
             try { connect(device) } catch (_: IOException) { throw first }
         }
+        AppLog.i("BT", "connected in ${System.currentTimeMillis() - t0}ms")
         try {
             val out = socket.outputStream
             val totalBytes = chunks.sumOf { it.size }
@@ -81,6 +86,8 @@ class BtPrinter(private val ctx: Context) {
             // been processed. A reply therefore proves the receipt is fully
             // printed and the link can be closed. Printers that never answer
             // fall back to a size-proportional timed drain.
+            val tSent = System.currentTimeMillis()
+            AppLog.i("BT", "all $totalBytes bytes written in ${tSent - t0}ms; waiting for GS r reply")
             out.write(byteArrayOf(0x1D, 'r'.code.toByte(), 1))
             out.flush()
             val maxWaitMs = (3_000L + totalBytes / paceBytesPerMs).coerceAtMost(90_000L)
@@ -92,12 +99,14 @@ class BtPrinter(private val ctx: Context) {
                     val b = input.read()
                     // GS r replies have bit 4 = 0; real-time DLE EOT replies
                     // (possibly triggered earlier) have bit 4 = 1 - ignore those.
+                    AppLog.i("BT", "printer byte 0x${Integer.toHexString(b)} after ${System.currentTimeMillis() - tSent}ms")
                     if (b >= 0 && (b and 0x10) == 0) { acked = true; break }
                     continue
                 }
                 Thread.sleep(50)
             }
             // Short settle after ack; without ack the loop already waited the full budget.
+            AppLog.i("BT", if (acked) "handshake OK after ${System.currentTimeMillis() - tSent}ms" else "no reply in ${maxWaitMs}ms (timed drain used)")
             if (acked) Thread.sleep(400)
         } finally {
             try { socket.close() } catch (_: Exception) {}
@@ -122,8 +131,10 @@ class BtPrinter(private val ctx: Context) {
             try {
                 s = make()
                 s.connect()
+                AppLog.i("BT", "socket method #${attempts.indexOf(make) + 1} ok")
                 return s
             } catch (e: Exception) {
+                AppLog.e("BT", "socket method #${attempts.indexOf(make) + 1} failed: ${e.message}")
                 try { s?.close() } catch (_: Exception) {}
                 lastErr = e as? IOException ?: IOException(e.message ?: e.javaClass.simpleName, e)
             }

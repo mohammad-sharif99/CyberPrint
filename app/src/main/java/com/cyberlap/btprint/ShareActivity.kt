@@ -22,6 +22,8 @@ class ShareActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = Prefs(this)
+        AppLog.init(this)
+        AppLog.i("Share", "action=${intent.action} type=${intent.type}")
         if (prefs.printerMac == null) {
             Toast.makeText(this, R.string.no_printer, Toast.LENGTH_LONG).show()
             startActivity(Intent(this, MainActivity::class.java))
