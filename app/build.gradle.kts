@@ -11,8 +11,8 @@ android {
         applicationId = "com.cyberlap.btprint"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.2.0"
+        versionCode = 7
+        versionName = "1.2.2"
     }
 
     buildTypes {

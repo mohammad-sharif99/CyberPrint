@@ -57,23 +57,42 @@ class BtPrinter(private val ctx: Context) {
         try {
             val out = socket.outputStream
             val totalBytes = chunks.sumOf { it.size }
+            // Pace sending to the printer's PRINT speed, not its receive speed.
+            // Cheap printers accept data far faster than they print; when their
+            // buffer fills and the host disconnects, they stall mid-buffer and
+            // dump the remainder at the start of the next job. Feeding roughly
+            // as fast as the mechanism prints keeps the buffer near-empty.
+            val paceBytesPerMs = if (interChunkDelayMs > 0) 6 else 16
+            // Swallow anything the printer may have sent earlier so the
+            // handshake below reads only its own reply.
+            try { while (socket.inputStream.available() > 0) socket.inputStream.read() } catch (_: Exception) {}
             for (c in chunks) {
                 var off = 0
                 while (off < c.size) {
                     val n = minOf(WRITE_CHUNK, c.size - off)
                     out.write(c, off, n)
                     off += n
-                    if (interChunkDelayMs > 0) Thread.sleep(interChunkDelayMs)
                 }
                 out.flush()
+                Thread.sleep((c.size / paceBytesPerMs).coerceAtLeast(3).toLong())
             }
+            // End-of-job handshake: GS r 1 is a NON-real-time status request,
+            // so the printer answers only after everything queued before it has
+            // been processed. A reply therefore proves the receipt is fully
+            // printed and the link can be closed. Printers that never answer
+            // fall back to a size-proportional timed drain.
+            out.write(byteArrayOf(0x1D, 'r'.code.toByte(), 1))
             out.flush()
-            // Closing the socket discards anything still queued in the Bluetooth
-            // stack, which truncated long receipts (the tail then surfaced at the
-            // start of the next job). Wait proportionally to the job size
-            // (~12 KB/s worst-case printer throughput) before tearing down.
-            val drainMs = (500L + totalBytes / 12).coerceAtMost(30_000L)
-            Thread.sleep(if (interChunkDelayMs > 0) drainMs + 1000 else drainMs)
+            val maxWaitMs = (3_000L + totalBytes / paceBytesPerMs).coerceAtMost(90_000L)
+            val started = System.currentTimeMillis()
+            var acked = false
+            val input = socket.inputStream
+            while (System.currentTimeMillis() - started < maxWaitMs) {
+                if (input.available() > 0) { input.read(); acked = true; break }
+                Thread.sleep(50)
+            }
+            // Short settle after ack; without ack the loop already waited the full budget.
+            if (acked) Thread.sleep(400)
         } finally {
             try { socket.close() } catch (_: Exception) {}
         }

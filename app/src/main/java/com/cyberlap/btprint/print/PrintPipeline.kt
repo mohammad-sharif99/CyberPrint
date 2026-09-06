@@ -53,7 +53,7 @@ class PrintPipeline(private val ctx: Context) {
             // Trim trailing whitespace on the last page only; inner pages keep layout.
             if (trimBlank && idx == bitmaps.lastIndex) mono = mono.trimBottom()
             chunks += if (prefs.rasterMode == 1) EscPos.bitImage(mono)
-                      else EscPos.raster(mono, bandRows = if (prefs.slowMode) 64 else 160)
+                      else EscPos.raster(mono, bandRows = if (prefs.slowMode) 32 else 64)
         }
         if (prefs.feedLines > 0) chunks += EscPos.feed(prefs.feedLines)
         if (prefs.autoCut) chunks += EscPos.cut()
