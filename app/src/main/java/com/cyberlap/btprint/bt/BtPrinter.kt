@@ -98,9 +98,11 @@ class BtPrinter(private val ctx: Context) {
             AppLog.i("BT", "all $totalBytes bytes + ${pad.size} pad written in ${tSent - t0}ms; waiting for GS r reply")
             out.write(byteArrayOf(0x1D, 'r'.code.toByte(), 1))
             out.flush()
-            // Printers that never answer (log shows this one does not) fall
-            // back to a timed drain sized on a ~8 KB/s print speed.
-            val maxWaitMs = (2_000L + totalBytes / 8).coerceAtMost(60_000L)
+            // Printers that never answer fall back to a short drain that only
+            // needs to cover the phone-side Bluetooth buffer (~40 KB/s); slow
+            // mode keeps a generous budget for printers with tiny buffers.
+            val maxWaitMs = if (interChunkDelayMs > 0) (1_500L + totalBytes / 10).coerceAtMost(45_000L)
+                            else (600L + totalBytes / 40).coerceAtMost(15_000L)
             val started = System.currentTimeMillis()
             var acked = false
             val input = socket.inputStream

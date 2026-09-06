@@ -66,7 +66,9 @@ class PrintPipeline(private val ctx: Context) {
     @Throws(IOException::class)
     fun send(chunks: List<ByteArray>, macOverride: String? = null) {
         val mac = macOverride ?: prefs.printerMac ?: throw IOException("No printer selected")
-        val pace = prefs.rasterMode == 0 || prefs.slowMode
+        // Pacing is opt-in (slow mode): device logs proved link timing is not
+        // what loses job tails, so full-speed transfer is the default.
+        val pace = prefs.slowMode
         AppLog.i("Pipeline", "send -> $mac chunks=${chunks.size} bytes=${chunks.sumOf { it.size }} pace=$pace slow=${prefs.slowMode}")
         BtPrinter(ctx).print(mac, chunks, if (prefs.slowMode) 25 else 0, pace)
         AppLog.i("Pipeline", "send complete")
