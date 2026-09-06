@@ -60,12 +60,42 @@ class BtPrintService : PrintService() {
 
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
-            val list = buildPrinters()
-            if (list.isNotEmpty()) addPrinters(list)
+            // Any exception here makes the OS show "failed to add printers" with no
+            // detail, so trap everything and surface it in the app instead.
+            try {
+                if (!BtPrinter.hasPermission(this@BtPrintService)) {
+                    prefs.lastError = "Bluetooth permission missing for print service"
+                    return
+                }
+                val list = buildPrinters()
+                if (list.isEmpty()) {
+                    prefs.lastError = "No paired Bluetooth printers visible to print service"
+                    return
+                }
+                addPrinters(list)
+            } catch (e: Exception) {
+                Log.e(TAG, "printer discovery failed", e)
+                prefs.lastError = "discovery: ${e.message ?: e.javaClass.simpleName}"
+            }
         }
         override fun onStopPrinterDiscovery() {}
         override fun onValidatePrinters(printerIds: MutableList<PrinterId>) {}
-        override fun onStartPrinterStateTracking(printerId: PrinterId) {}
+        override fun onStartPrinterStateTracking(printerId: PrinterId) {
+            // Re-assert capabilities for ROMs that only accept them during tracking.
+            try {
+                val dev = BtPrinter.bondedDevices(this@BtPrintService).firstOrNull { it.address == printerId.localId } ?: return
+                val name = try { dev.name ?: dev.address } catch (_: SecurityException) { dev.address }
+                addPrinters(listOf(
+                    PrinterInfo.Builder(printerId, name, PrinterInfo.STATUS_IDLE)
+                        .setDescription("Bluetooth • ${dev.address}")
+                        .setCapabilities(capabilities(printerId))
+                        .build()
+                ))
+            } catch (e: Exception) {
+                Log.e(TAG, "state tracking failed", e)
+                prefs.lastError = "tracking: ${e.message ?: e.javaClass.simpleName}"
+            }
+        }
         override fun onStopPrinterStateTracking(printerId: PrinterId) {}
         override fun onDestroy() {}
     }
