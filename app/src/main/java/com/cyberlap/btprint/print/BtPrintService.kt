@@ -44,6 +44,8 @@ class BtPrintService : PrintService() {
         private const val PREFIX_58 = "CP58_"
         private const val PREFIX_80 = "CP80_"
         private const val CHANNEL_ERRORS = "print_errors"
+        /** Fixed virtual printer: always present, resolved to the chosen MAC at print time. */
+        const val VIRTUAL_ID = "cyberprint"
 
         // Job threads are deliberately NOT tied to the service lifecycle: some OEMs
         // unbind and destroy the print service the moment the print dialog closes,
@@ -68,16 +70,13 @@ class BtPrintService : PrintService() {
             // Any exception here makes the OS show "failed to add printers" with no
             // detail, so trap everything and surface it in the app instead.
             try {
-                if (!BtPrinter.hasPermission(this@BtPrintService)) {
-                    prefs.lastError = "Bluetooth permission missing for print service"
-                    return
-                }
-                val list = buildPrinters()
+                // The virtual printer needs no Bluetooth access, so it is
+                // available instantly even on a cold start where the adapter
+                // or bonded-device list is not ready yet.
+                val list = ArrayList<PrinterInfo>()
+                list += virtualPrinter()
+                try { list += buildPrinters() } catch (e: Exception) { AppLog.e(TAG, "bonded list unavailable: ${e.message}") }
                 AppLog.i(TAG, "discovery: ${list.size} printers: ${list.joinToString { it.name }}")
-                if (list.isEmpty()) {
-                    prefs.lastError = "No paired Bluetooth printers visible to print service"
-                    return
-                }
                 addPrinters(list)
             } catch (e: Exception) {
                 AppLog.e(TAG, "printer discovery failed", e)
@@ -101,8 +100,9 @@ class BtPrintService : PrintService() {
         @SuppressLint("MissingPermission")
         private fun reassert(ids: List<PrinterId>, phase: String) {
             try {
-                val bonded = BtPrinter.bondedDevices(this@BtPrintService)
+                val bonded = try { BtPrinter.bondedDevices(this@BtPrintService) } catch (_: Exception) { emptyList() }
                 val infos = ids.mapNotNull { id ->
+                    if (id.localId == VIRTUAL_ID) return@mapNotNull virtualPrinter()
                     val dev = bonded.firstOrNull { it.address == id.localId } ?: return@mapNotNull null
                     val name = try { dev.name ?: dev.address } catch (_: SecurityException) { dev.address }
                     PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
@@ -119,6 +119,15 @@ class BtPrintService : PrintService() {
         }
         override fun onStopPrinterStateTracking(printerId: PrinterId) {}
         override fun onDestroy() {}
+    }
+
+    private fun virtualPrinter(): PrinterInfo {
+        val id = generatePrinterId(VIRTUAL_ID)
+        val name = prefs.printerName?.let { "$it (CyberPrint)" } ?: getString(R.string.app_name)
+        return PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
+            .setDescription(prefs.printerMac?.let { "Bluetooth • $it" } ?: getString(R.string.no_printer))
+            .setCapabilities(capabilities(id))
+            .build()
     }
 
     @SuppressLint("MissingPermission")
@@ -167,7 +176,7 @@ class BtPrintService : PrintService() {
         if (!printJob.isQueued) return
         printJob.start()
         val key = printJob.id.toString()
-        val mac = printJob.info.printerId?.localId
+        val mac = printJob.info.printerId?.localId?.let { if (it == VIRTUAL_ID) prefs.printerMac else it }
         val media = printJob.info.attributes.mediaSize
         val dots = if (media != null && media.id.startsWith(PREFIX_58)) Prefs.DOTS_58 else Prefs.DOTS_80
         val jobLabel = printJob.info.label ?: "print job"
@@ -175,8 +184,15 @@ class BtPrintService : PrintService() {
         // Pull the document fd now, on the main thread, before it is recycled.
         val pfd: ParcelFileDescriptor? = printJob.document.data
         AppLog.i(TAG, "job queued id=$key label=$jobLabel printer=$mac media=${media?.id} dots=$dots pages=${printJob.document.info.pageCount} fd=${pfd != null}")
-        if (pfd == null || mac == null) {
-            AppLog.e(TAG, "job $key has no data / printer")
+        if (mac == null) {
+            AppLog.e(TAG, "job $key: no printer selected in CyberPrint")
+            Prefs(this).lastError = getString(R.string.no_printer)
+            notifyFailure(applicationContext, jobLabel, getString(R.string.no_printer))
+            printJob.fail(getString(R.string.no_printer))
+            return
+        }
+        if (pfd == null) {
+            AppLog.e(TAG, "job $key has no data")
             printJob.fail("No document data")
             return
         }
