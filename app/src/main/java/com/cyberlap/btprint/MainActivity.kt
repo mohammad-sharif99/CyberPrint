@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.cyberlap.btprint.bt.BtPrinter
 import com.cyberlap.btprint.databinding.ActivityMainBinding
+import com.cyberlap.btprint.print.JobRunnerService
 import com.cyberlap.btprint.print.PrintPipeline
 import com.cyberlap.btprint.text.TextRenderer
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,7 @@ class MainActivity : AppCompatActivity() {
         AppLog.i("Main", "opened; printer=${prefs.printerMac} paper=${prefs.paperMm} raster=${prefs.rasterMode} slow=${prefs.slowMode} feed=${prefs.feedLines} cut=${prefs.autoCut}")
         ensurePermission()
         bindSettings()
+        if (prefs.alwaysReady) JobRunnerService.startReady(this)
 
         b.btnChoose.setOnClickListener { choosePrinter() }
         b.btnPair.setOnClickListener { startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) }
@@ -67,6 +69,22 @@ class MainActivity : AppCompatActivity() {
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) wanted += Manifest.permission.POST_NOTIFICATIONS
         if (wanted.isNotEmpty()) permLauncher.launch(wanted.toTypedArray())
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun requestBatteryExemption() {
+        try {
+            val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                Toast.makeText(this, R.string.battery_hint, Toast.LENGTH_LONG).show()
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(android.net.Uri.parse("package:$packageName"))
+                )
+            }
+        } catch (e: Exception) {
+            AppLog.e("Main", "battery exemption request failed: ${e.message}")
+        }
     }
 
     override fun onResume() {
@@ -99,6 +117,11 @@ class MainActivity : AppCompatActivity() {
         b.swDrawer.setOnCheckedChangeListener { _, c -> prefs.cashDrawer = c }
         b.swSlow.isChecked = prefs.slowMode
         b.swSlow.setOnCheckedChangeListener { _, c -> prefs.slowMode = c }
+        b.swReady.isChecked = prefs.alwaysReady
+        b.swReady.setOnCheckedChangeListener { _, c ->
+            prefs.alwaysReady = c
+            if (c) { JobRunnerService.startReady(this); requestBatteryExemption() } else JobRunnerService.stopReady(this)
+        }
         b.swKeep.isChecked = prefs.keepConnection
         b.swKeep.setOnCheckedChangeListener { _, c -> prefs.keepConnection = c; if (!c) BtPrinter.disconnect() }
         b.swSingle.isChecked = prefs.singleRaster

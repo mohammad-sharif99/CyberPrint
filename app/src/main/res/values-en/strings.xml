@@ -45,4 +45,7 @@
     <string name="open_log">Event log (diagnostics)</string>
     <string name="keep_connection">Keep connection open between jobs (faster)</string>
     <string name="single_raster">Send image as one command (not bands)</string>
+    <string name="always_ready">Always ready (silent notification keeps the app alive)</string>
+    <string name="ready_notif">CyberPrint ready to print</string>
+    <string name="battery_hint">Allow CyberPrint to ignore battery optimisation so the printer stays available.</string>
 </resources>

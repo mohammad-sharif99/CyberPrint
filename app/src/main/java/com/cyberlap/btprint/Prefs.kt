@@ -46,6 +46,11 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("slow", false)
         set(v) = sp.edit { putBoolean("slow", v) }
 
+    /** Keep a foreground "ready" service alive so OEM ROMs let the print spooler bind instantly. */
+    var alwaysReady: Boolean
+        get() = sp.getBoolean("alwaysReady", true)
+        set(v) = sp.edit { putBoolean("alwaysReady", v) }
+
     /** Keep the Bluetooth link open between jobs (closed after 60 s idle). */
     var keepConnection: Boolean
         get() = sp.getBoolean("keepConn", true)

@@ -194,6 +194,11 @@
                         android:layout_height="wrap_content"
                         android:text="@string/slow_mode" />
                     <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/swReady"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/always_ready" />
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/swKeep"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

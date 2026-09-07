@@ -46,4 +46,7 @@
     <string name="open_log">سجل الأحداث (للتشخيص)</string>
     <string name="keep_connection">إبقاء الاتصال مفتوحًا بين الطباعات (أسرع)</string>
     <string name="single_raster">إرسال الصورة كأمر واحد (بدل شرائح)</string>
+    <string name="always_ready">جاهزية دائمة (إشعار صامت يمنع النظام من إيقاف التطبيق)</string>
+    <string name="ready_notif">CyberPrint جاهز للطباعة</string>
+    <string name="battery_hint">اسمح بتعطيل تحسين البطارية لـ CyberPrint حتى تبقى الطابعة متاحة دائمًا.</string>
 </resources>
