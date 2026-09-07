@@ -73,10 +73,12 @@ class BtPrintService : PrintService() {
                 // The virtual printer needs no Bluetooth access, so it is
                 // available instantly even on a cold start where the adapter
                 // or bonded-device list is not ready yet.
-                val list = ArrayList<PrinterInfo>()
-                list += virtualPrinter()
-                try { list += buildPrinters() } catch (e: Exception) { AppLog.e(TAG, "bonded list unavailable: ${e.message}") }
-                AppLog.i(TAG, "discovery: ${list.size} printers: ${list.joinToString { it.name }}")
+                // A single fixed printer, built from preferences only (no
+                // Bluetooth access), so it is always available - even on a cold
+                // start before the adapter is ready. It resolves to the chosen
+                // device at print time. This mirrors commercial ESC/POS drivers.
+                val list = listOf(virtualPrinter())
+                AppLog.i(TAG, "discovery: offering ${list.first().name}")
                 addPrinters(list)
             } catch (e: Exception) {
                 AppLog.e(TAG, "printer discovery failed", e)
@@ -123,29 +125,11 @@ class BtPrintService : PrintService() {
 
     private fun virtualPrinter(): PrinterInfo {
         val id = generatePrinterId(VIRTUAL_ID)
-        val name = prefs.printerName?.let { "$it (CyberPrint)" } ?: getString(R.string.app_name)
+        val name = prefs.printerName?.let { "CyberPrint - $it" } ?: getString(R.string.app_name)
         return PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
             .setDescription(prefs.printerMac?.let { "Bluetooth • $it" } ?: getString(R.string.no_printer))
             .setCapabilities(capabilities(id))
             .build()
-    }
-
-    @SuppressLint("MissingPermission")
-    private fun buildPrinters(): List<PrinterInfo> {
-        val out = ArrayList<PrinterInfo>()
-        val devices = BtPrinter.bondedDevices(this)
-        val preferredMac = prefs.printerMac
-        // Preferred printer first so it is the default pick.
-        val sorted = devices.sortedBy { if (it.address == preferredMac) 0 else 1 }
-        for (d in sorted) {
-            val id = generatePrinterId(d.address)
-            val name = try { d.name ?: d.address } catch (_: SecurityException) { d.address }
-            out += PrinterInfo.Builder(id, name, PrinterInfo.STATUS_IDLE)
-                .setDescription("Bluetooth • ${d.address}")
-                .setCapabilities(capabilities(id))
-                .build()
-        }
-        return out
     }
 
     private fun capabilities(id: PrinterId): PrinterCapabilitiesInfo {
