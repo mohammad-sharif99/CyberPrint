@@ -39,7 +39,8 @@ object AppLog {
                 old.delete(); f.renameTo(old)
             }
             val sb = StringBuilder()
-            sb.append(fmt.format(Date())).append(' ').append(level).append('/').append(tag).append(": ").append(msg).append('\n')
+            sb.append(fmt.format(Date())).append(" [").append(android.os.Process.myPid()).append("] ")
+                .append(level).append('/').append(tag).append(": ").append(msg).append('\n')
             if (t != null) {
                 val sw = StringWriter(); t.printStackTrace(PrintWriter(sw))
                 sb.append(sw.toString().lineSequence().take(12).joinToString("\n")).append('\n')

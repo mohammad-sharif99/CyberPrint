@@ -41,6 +41,8 @@ class MainActivity : AppCompatActivity() {
         AppLog.i("Main", "opened; printer=${prefs.printerMac} paper=${prefs.paperMm} raster=${prefs.rasterMode} slow=${prefs.slowMode} feed=${prefs.feedLines} cut=${prefs.autoCut}")
         ensurePermission()
         bindSettings()
+        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+        AppLog.i("Main", "batteryOptIgnored=${pm.isIgnoringBatteryOptimizations(packageName)} alwaysReady=${prefs.alwaysReady} device=${Build.MANUFACTURER} ${Build.MODEL} android=${Build.VERSION.RELEASE}")
         if (prefs.alwaysReady) JobRunnerService.startReady(this)
 
         b.btnChoose.setOnClickListener { choosePrinter() }

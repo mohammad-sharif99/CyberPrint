@@ -63,6 +63,7 @@ class BtPrintService : PrintService() {
         AppLog.i(TAG, "service created")
     }
 
+    override fun onDestroy() { AppLog.i(TAG, "service destroyed (unbound by spooler)"); super.onDestroy() }
     override fun onConnected() { super.onConnected(); AppLog.i(TAG, "spooler CONNECTED to service") }
     override fun onDisconnected() { AppLog.i(TAG, "spooler disconnected"); super.onDisconnected() }
 
@@ -123,8 +124,8 @@ class BtPrintService : PrintService() {
                 prefs.lastError = "$phase: ${e.message ?: e.javaClass.simpleName}"
             }
         }
-        override fun onStopPrinterStateTracking(printerId: PrinterId) {}
-        override fun onDestroy() {}
+        override fun onStopPrinterStateTracking(printerId: PrinterId) { AppLog.i(TAG, "stop tracking ${printerId.localId}") }
+        override fun onDestroy() { AppLog.i(TAG, "discovery session destroyed") }
     }
 
     private fun virtualPrinter(): PrinterInfo {
