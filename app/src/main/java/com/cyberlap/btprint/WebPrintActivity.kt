@@ -65,10 +65,17 @@ class WebPrintActivity : AppCompatActivity() {
 
         // Lay the page out at the paper's physical width (58 mm -> 219 css px,
         // 80 mm -> 302 css px) so receipt CSS written in mm/px prints 1:1.
+        // The WebView spans the full screen width; the zoom is chosen so the CSS
+        // viewport equals the paper width exactly (never wider than the screen,
+        // which previously left part of the page unrendered on narrow phones).
         val printableMm = if (paperMm <= 58) 48f else 72f
         val cssWidth = (printableMm * CSS_PX_PER_MM).toInt()
-        val density = resources.displayMetrics.density
-        b.web.layoutParams = b.web.layoutParams.apply { width = (cssWidth * density).toInt() }
+        val screenW = resources.displayMetrics.widthPixels
+        b.web.setInitialScale(screenW * 100 / cssWidth)
+        // Scrollbars would be drawn into the capture (a line at the left in RTL, or at the bottom).
+        b.web.isVerticalScrollBarEnabled = false
+        b.web.isHorizontalScrollBarEnabled = false
+        b.web.overScrollMode = android.view.View.OVER_SCROLL_NEVER
 
         b.web.settings.apply {
             javaScriptEnabled = true
@@ -76,7 +83,11 @@ class WebPrintActivity : AppCompatActivity() {
             loadWithOverviewMode = false
             useWideViewPort = false
             builtInZoomControls = false
+            displayZoomControls = false
+            setSupportZoom(false)
+            textZoom = 100
         }
+        AppLog.i("WebPrint", "viewport css=${cssWidth}px screen=${screenW}px scale=${screenW * 100 / cssWidth}%")
         b.web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
             override fun onPageFinished(view: WebView?, url: String?) {
