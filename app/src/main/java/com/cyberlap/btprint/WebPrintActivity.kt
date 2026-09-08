@@ -96,12 +96,17 @@ class WebPrintActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 b.progress.hide()
                 b.btnPrintPage.isEnabled = true
+                // Safety net: if anything is wider than the viewport, shrink the
+                // whole document (CSS zoom) so it fits, instead of clipping an edge.
                 view?.evaluateJavascript(
-                    "(function(){var d=document.documentElement,b=document.body;return [Math.max(d.scrollWidth,b?b.scrollWidth:0),d.clientWidth,Math.max(d.scrollHeight,b?b.scrollHeight:0)].join('x')})()"
-                ) { AppLog.i("WebPrint", "document scrollW x clientW x scrollH (css px) = $it; view=${view.width}px scale=${@Suppress("DEPRECATION") view.scale}") }
+                    "(function(){var d=document.documentElement,b=document.body;" +
+                    "var sw=Math.max(d.scrollWidth,b?b.scrollWidth:0),cw=d.clientWidth;" +
+                    "if(sw>cw+1){d.style.zoom=(cw/sw);d.style.overflowX='hidden';return 'zoomed '+sw+'>'+cw+' -> '+(cw/sw).toFixed(3);}" +
+                    "return 'fits '+sw+'<='+cw;})()"
+                ) { AppLog.i("WebPrint", "document width check: $it; view=${view.width}px") }
                 if (auto && !printed) {
-                    // Give images/fonts a moment to paint before capturing.
-                    b.web.postDelayed({ if (!isFinishing) printPage() }, 700)
+                    // Give images/fonts (and the zoom above) a moment to paint before capturing.
+                    b.web.postDelayed({ if (!isFinishing) printPage() }, 900)
                 }
             }
         }
