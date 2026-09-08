@@ -46,6 +46,12 @@ class Prefs(ctx: Context) {
         get() = sp.getBoolean("slow", false)
         set(v) = sp.edit { putBoolean("slow", v) }
 
+    /** Side margin in dots: content is shrunk and centred so printers whose head
+     *  does not reach the paper edge stop clipping the first/last characters. */
+    var marginDots: Int
+        get() = sp.getInt("margin", 0)
+        set(v) = sp.edit { putInt("margin", v.coerceIn(0, 48)) }
+
     /** Keep a foreground "ready" service alive so OEM ROMs let the print spooler bind instantly. */
     var alwaysReady: Boolean
         get() = sp.getBoolean("alwaysReady", true)

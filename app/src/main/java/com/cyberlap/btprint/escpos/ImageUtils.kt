@@ -19,6 +19,20 @@ object ImageUtils {
         return out
     }
 
+    /** Shrink the content by [margin] dots on each side and centre it on a white page of the same width. */
+    fun inset(src: Bitmap, margin: Int): Bitmap {
+        if (margin <= 0 || src.width - 2 * margin < 8) return src
+        val innerW = src.width - 2 * margin
+        val innerH = maxOf(1, (src.height.toLong() * innerW / src.width).toInt())
+        val out = Bitmap.createBitmap(src.width, innerH, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        c.drawColor(Color.WHITE)
+        val scaled = Bitmap.createScaledBitmap(src, innerW, innerH, true)
+        c.drawBitmap(scaled, margin.toFloat(), 0f, null)
+        scaled.recycle()
+        return out
+    }
+
     /**
      * Convert to 1-bit. [threshold] 0..255: pixels darker than it become black.
      * [dither] uses Floyd–Steinberg for photos/greyscale; off gives crisp text.

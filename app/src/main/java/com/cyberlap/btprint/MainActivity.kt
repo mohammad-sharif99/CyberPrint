@@ -115,6 +115,8 @@ class MainActivity : AppCompatActivity() {
         }
         b.darkness.value = prefs.darkness.toFloat()
         b.darkness.addOnChangeListener { _, v, _ -> prefs.darkness = v.toInt() }
+        b.margin.value = prefs.marginDots.toFloat()
+        b.margin.addOnChangeListener { _, v, _ -> prefs.marginDots = v.toInt() }
         b.feed.value = prefs.feedLines.toFloat()
         b.feed.addOnChangeListener { _, v, _ -> prefs.feedLines = v.toInt() }
         b.swDither.isChecked = prefs.dither

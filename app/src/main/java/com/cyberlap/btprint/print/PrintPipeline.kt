@@ -49,8 +49,10 @@ class PrintPipeline(private val ctx: Context) {
         chunks += EscPos.init
         chunks += EscPos.lineSpacingDefault()
         chunks += EscPos.alignLeft()
-        for ((idx, bmp) in bitmaps.withIndex()) {
+        for ((idx, src) in bitmaps.withIndex()) {
+            val bmp = ImageUtils.inset(src, prefs.marginDots)
             var mono: MonoBitmap = ImageUtils.toMono(bmp, prefs.darkness, prefs.dither)
+            if (bmp !== src) bmp.recycle()
             // Trim trailing whitespace on the last page only; inner pages keep layout.
             if (trimBlank && idx == bitmaps.lastIndex) mono = mono.trimBottom()
             val band = when {
