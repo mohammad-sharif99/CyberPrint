@@ -48,4 +48,7 @@
     <string name="always_ready">Always ready (silent notification keeps the app alive)</string>
     <string name="ready_notif">CyberPrint ready to print</string>
     <string name="battery_hint">Allow CyberPrint to ignore battery optimisation so the printer stays available.</string>
+    <string name="autostart_btn">Auto-start &amp; background settings (important)</string>
+    <string name="autostart_hint">Enable auto-start for CyberPrint on the next screen, then set battery to unrestricted. Without it the system cannot launch the print service when Chrome asks for it.</string>
+    <string name="autostart_fallback">Could not open the auto-start screen automatically. Open: Phone Master → App management → Auto-start → enable CyberPrint.</string>
 </resources>

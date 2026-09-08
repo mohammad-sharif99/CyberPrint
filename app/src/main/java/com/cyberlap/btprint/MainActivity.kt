@@ -52,6 +52,12 @@ class MainActivity : AppCompatActivity() {
             catch (_: Exception) { startActivity(Intent(Settings.ACTION_SETTINGS)) }
         }
         b.btnLog.setOnClickListener { startActivity(Intent(this, LogActivity::class.java)) }
+        b.btnAutoStart.setOnClickListener {
+            Toast.makeText(this, R.string.autostart_hint, Toast.LENGTH_LONG).show()
+            val opened = AutoStart.open(this)
+            if (!opened) Toast.makeText(this, R.string.autostart_fallback, Toast.LENGTH_LONG).show()
+            requestBatteryExemption()
+        }
         b.btnRawTest.setOnClickListener { runPrint { PrintPipeline(this).printRawTest() } }
         b.btnTest.setOnClickListener { printBitmapsAsync { listOf(TextRenderer.render(testReceipt(), prefs.dots)) } }
         b.btnPrintText.setOnClickListener {

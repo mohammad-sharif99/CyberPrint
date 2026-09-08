@@ -213,6 +213,12 @@
 
             <!-- Actions -->
             <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAutoStart"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/secondary"
+                android:text="@string/autostart_btn" />
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnEnableService"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -49,4 +49,7 @@
     <string name="always_ready">جاهزية دائمة (إشعار صامت يمنع النظام من إيقاف التطبيق)</string>
     <string name="ready_notif">CyberPrint جاهز للطباعة</string>
     <string name="battery_hint">اسمح بتعطيل تحسين البطارية لـ CyberPrint حتى تبقى الطابعة متاحة دائمًا.</string>
+    <string name="autostart_btn">إعدادات التشغيل التلقائي والخلفية (مهم)</string>
+    <string name="autostart_hint">فعّل «التشغيل التلقائي» لـ CyberPrint في الشاشة التالية، ثم اجعل البطارية «بدون قيود». بدون هذا لن يستطيع النظام تشغيل خدمة الطباعة عندما يطلبها كروم.</string>
+    <string name="autostart_fallback">لم أجد شاشة التشغيل التلقائي تلقائيًا. افتح: Phone Master ← إدارة التطبيقات ← التشغيل التلقائي ← فعّل CyberPrint.</string>
 </resources>
