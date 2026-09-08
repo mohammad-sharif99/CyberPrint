@@ -71,6 +71,10 @@ class WebPrintActivity : AppCompatActivity() {
         val printableMm = if (paperMm <= 58) 48f else 72f
         val cssWidth = (printableMm * CSS_PX_PER_MM).toInt()
         val screenW = resources.displayMetrics.widthPixels
+        // Fixed layout viewport = paper width, zoomed to fill the screen exactly.
+        // (Overview/wide-viewport mode was tried and rejected: one oversized
+        // image made it zoom the WHOLE receipt down to fit that image.)
+        b.web.setInitialScale(screenW * 100 / cssWidth)
         // Scrollbars would be drawn into the capture (a line at the left in RTL, or at the bottom).
         b.web.isVerticalScrollBarEnabled = false
         b.web.isHorizontalScrollBarEnabled = false
@@ -83,8 +87,8 @@ class WebPrintActivity : AppCompatActivity() {
             // viewport meta (we inject width=<paper> for inline HTML) and grows
             // to the real content width if something is wider; overview then
             // zooms the WHOLE content to fit the screen, so nothing is clipped.
-            loadWithOverviewMode = true
-            useWideViewPort = true
+            loadWithOverviewMode = false
+            useWideViewPort = false
             builtInZoomControls = false
             displayZoomControls = false
             setSupportZoom(false)
@@ -96,14 +100,20 @@ class WebPrintActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 b.progress.hide()
                 b.btnPrintPage.isEnabled = true
-                // Safety net: if anything is wider than the viewport, shrink the
-                // whole document (CSS zoom) so it fits, instead of clipping an edge.
+                // Fit-to-paper: first constrain the usual culprits (images, tables,
+                // fixed-width bodies) to the viewport; only if something STILL
+                // overflows, shrink the whole document as a last resort.
                 view?.evaluateJavascript(
                     "(function(){var d=document.documentElement,b=document.body;" +
+                    "var s=document.createElement('style');s.textContent=" +
+                    "'html,body{width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;overflow-x:hidden!important}" +
+                    "img,svg,video,canvas,iframe{max-width:100%!important;height:auto!important}" +
+                    "table{max-width:100%!important}*{min-width:0}';" +
+                    "document.head.appendChild(s);" +
                     "var sw=Math.max(d.scrollWidth,b?b.scrollWidth:0),cw=d.clientWidth;" +
-                    "if(sw>cw+1){d.style.zoom=(cw/sw);d.style.overflowX='hidden';return 'zoomed '+sw+'>'+cw+' -> '+(cw/sw).toFixed(3);}" +
-                    "return 'fits '+sw+'<='+cw;})()"
-                ) { AppLog.i("WebPrint", "document width check: $it; view=${view.width}px") }
+                    "if(sw>cw+1){d.style.zoom=(cw/sw);return 'css applied; still wide '+sw+'>'+cw+' -> zoom '+(cw/sw).toFixed(3);}" +
+                    "return 'css applied; fits '+sw+'<='+cw;})()"
+                ) { AppLog.i("WebPrint", "fit-to-paper: $it; view=${view.width}px") }
                 if (auto && !printed) {
                     // Give images/fonts (and the zoom above) a moment to paint before capturing.
                     b.web.postDelayed({ if (!isFinishing) printPage() }, 900)
