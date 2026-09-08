@@ -71,7 +71,6 @@ class WebPrintActivity : AppCompatActivity() {
         val printableMm = if (paperMm <= 58) 48f else 72f
         val cssWidth = (printableMm * CSS_PX_PER_MM).toInt()
         val screenW = resources.displayMetrics.widthPixels
-        b.web.setInitialScale(screenW * 100 / cssWidth)
         // Scrollbars would be drawn into the capture (a line at the left in RTL, or at the bottom).
         b.web.isVerticalScrollBarEnabled = false
         b.web.isHorizontalScrollBarEnabled = false
@@ -80,19 +79,26 @@ class WebPrintActivity : AppCompatActivity() {
         b.web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            loadWithOverviewMode = false
-            useWideViewPort = false
+            // Wide viewport + overview: the layout width follows the page's own
+            // viewport meta (we inject width=<paper> for inline HTML) and grows
+            // to the real content width if something is wider; overview then
+            // zooms the WHOLE content to fit the screen, so nothing is clipped.
+            loadWithOverviewMode = true
+            useWideViewPort = true
             builtInZoomControls = false
             displayZoomControls = false
             setSupportZoom(false)
             textZoom = 100
         }
-        AppLog.i("WebPrint", "viewport css=${cssWidth}px screen=${screenW}px scale=${screenW * 100 / cssWidth}%")
+        AppLog.i("WebPrint", "paper viewport css=${cssWidth}px screen=${screenW}px")
         b.web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
             override fun onPageFinished(view: WebView?, url: String?) {
                 b.progress.hide()
                 b.btnPrintPage.isEnabled = true
+                view?.evaluateJavascript(
+                    "(function(){var d=document.documentElement,b=document.body;return [Math.max(d.scrollWidth,b?b.scrollWidth:0),d.clientWidth,Math.max(d.scrollHeight,b?b.scrollHeight:0)].join('x')})()"
+                ) { AppLog.i("WebPrint", "document scrollW x clientW x scrollH (css px) = $it; view=${view.width}px scale=${@Suppress("DEPRECATION") view.scale}") }
                 if (auto && !printed) {
                     // Give images/fonts a moment to paint before capturing.
                     b.web.postDelayed({ if (!isFinishing) printPage() }, 700)
@@ -103,7 +109,15 @@ class WebPrintActivity : AppCompatActivity() {
         b.btnPrintPage.setOnClickListener { printPage() }
 
         if (!html.isNullOrBlank()) {
-            b.web.loadDataWithBaseURL(url ?: "https://cyberprint.local/", html, "text/html", "utf-8", null)
+            // Force the layout viewport to the paper width unless the page sets its own.
+            val meta = "<meta name=\"viewport\" content=\"width=$cssWidth, initial-scale=1\">"
+            val doc = when {
+                html.contains("name=\"viewport\"", ignoreCase = true) || html.contains("name='viewport'", ignoreCase = true) -> html
+                html.contains("<head>", ignoreCase = true) -> html.replaceFirst(Regex("(?i)<head>"), "<head>$meta")
+                html.contains("<html", ignoreCase = true) -> html.replaceFirst(Regex("(?i)<html[^>]*>"), "$0<head>$meta</head>")
+                else -> "<!doctype html><html><head><meta charset=\"utf-8\">$meta</head><body>$html</body></html>"
+            }
+            b.web.loadDataWithBaseURL(url ?: "https://cyberprint.local/", doc, "text/html", "utf-8", null)
         } else {
             b.web.loadUrl(url!!)
         }
