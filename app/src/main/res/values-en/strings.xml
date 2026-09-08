@@ -52,4 +52,5 @@
     <string name="autostart_hint">Enable auto-start for CyberPrint on the next screen, then set battery to unrestricted. Without it the system cannot launch the print service when Chrome asks for it.</string>
     <string name="autostart_fallback">Could not open the auto-start screen automatically. Open: Phone Master → App management → Auto-start → enable CyberPrint.</string>
     <string name="margin_label">Side margin (dots) — if the printer clips the edges</string>
+    <string name="log_capture">Last capture</string>
 </resources>

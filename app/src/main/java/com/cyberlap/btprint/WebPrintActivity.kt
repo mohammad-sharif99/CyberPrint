@@ -147,6 +147,9 @@ class WebPrintActivity : AppCompatActivity() {
         canvas.scale(scale, scale)
         web.draw(canvas)
         AppLog.i("WebPrint", "captured ${bmp.width}x${bmp.height} from ${srcW}x$srcH")
+        try {
+            java.io.File(filesDir, "last_capture.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        } catch (e: Exception) { AppLog.e("WebPrint", "cannot save capture: ${e.message}") }
 
         lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) {

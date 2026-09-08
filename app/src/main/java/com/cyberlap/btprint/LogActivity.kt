@@ -19,12 +19,22 @@ class LogActivity : AppCompatActivity() {
         b.btnShare.setOnClickListener { share() }
         b.btnClear.setOnClickListener { AppLog.clear(this); refresh() }
         b.btnRefresh.setOnClickListener { refresh() }
+        b.btnCapture.setOnClickListener { shareCapture() }
     }
 
     private fun refresh() {
         val text = AppLog.read(this)
         b.logText.text = text.ifBlank { getString(R.string.log_empty) }
         b.scroll.post { b.scroll.fullScroll(android.view.View.FOCUS_DOWN) }
+    }
+
+    private fun shareCapture() {
+        val f = java.io.File(filesDir, "last_capture.png")
+        if (!f.exists()) { android.widget.Toast.makeText(this, R.string.log_empty, android.widget.Toast.LENGTH_SHORT).show(); return }
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", f)
+        startActivity(Intent.createChooser(
+            Intent(Intent.ACTION_SEND).setType("image/png").putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), getString(R.string.log_capture)))
     }
 
     private fun share() {

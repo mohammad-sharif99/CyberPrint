@@ -53,4 +53,5 @@
     <string name="autostart_hint">فعّل «التشغيل التلقائي» لـ CyberPrint في الشاشة التالية، ثم اجعل البطارية «بدون قيود». بدون هذا لن يستطيع النظام تشغيل خدمة الطباعة عندما يطلبها كروم.</string>
     <string name="autostart_fallback">لم أجد شاشة التشغيل التلقائي تلقائيًا. افتح: Phone Master ← إدارة التطبيقات ← التشغيل التلقائي ← فعّل CyberPrint.</string>
     <string name="margin_label">هامش جانبي (نقاط) — لو الطابعة تقص الأطراف</string>
+    <string name="log_capture">آخر لقطة</string>
 </resources>
