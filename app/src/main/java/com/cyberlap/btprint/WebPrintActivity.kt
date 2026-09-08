@@ -19,19 +19,30 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Renders a shared web page in a WebView and prints it as an image — a
- * print-service-free path for ROMs that block third-party print services.
- * The user sees the page and taps Print when it looks ready.
+ * Renders a web page (URL or inline HTML) in a WebView and prints it as an
+ * image. This path never touches the system print framework, so it works on
+ * ROMs that block third-party print services. In [EXTRA_AUTO] mode it prints
+ * as soon as the page has loaded and closes itself - used by cyberprint:// links.
  */
 class WebPrintActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_URL = "url"
+        const val EXTRA_HTML = "html"
+        const val EXTRA_AUTO = "auto"
+        const val EXTRA_WIDTH_MM = "width"
+        const val EXTRA_COPIES = "copies"
         private const val MAX_CAPTURE_HEIGHT_PX = 20_000
+        /** CSS px per mm at the 96 dpi the web assumes. */
+        private const val CSS_PX_PER_MM = 96f / 25.4f
     }
 
     private lateinit var b: ActivityWebPrintBinding
     private lateinit var prefs: Prefs
+    private var auto = false
+    private var dots = 576
+    private var copies = 1
+    private var printed = false
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,26 +52,50 @@ class WebPrintActivity : AppCompatActivity() {
         b = ActivityWebPrintBinding.inflate(layoutInflater)
         setContentView(b.root)
         prefs = Prefs(this)
+        AppLog.init(this)
 
         val url = intent.getStringExtra(EXTRA_URL)
-        if (url.isNullOrBlank()) { finish(); return }
+        val html = intent.getStringExtra(EXTRA_HTML)
+        auto = intent.getBooleanExtra(EXTRA_AUTO, false)
+        copies = intent.getIntExtra(EXTRA_COPIES, 1).coerceIn(1, 10)
+        val paperMm = intent.getIntExtra(EXTRA_WIDTH_MM, prefs.paperMm)
+        dots = Prefs.dotsFor(paperMm)
+        if (url.isNullOrBlank() && html.isNullOrBlank()) { finish(); return }
+        AppLog.i("WebPrint", "auto=$auto paper=${paperMm}mm copies=$copies url=${url?.take(80)} html=${html?.length ?: 0}B")
+
+        // Lay the page out at the paper's physical width (58 mm -> 219 css px,
+        // 80 mm -> 302 css px) so receipt CSS written in mm/px prints 1:1.
+        val printableMm = if (paperMm <= 58) 48f else 72f
+        val cssWidth = (printableMm * CSS_PX_PER_MM).toInt()
+        val density = resources.displayMetrics.density
+        b.web.layoutParams = b.web.layoutParams.apply { width = (cssWidth * density).toInt() }
 
         b.web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            loadWithOverviewMode = true
+            loadWithOverviewMode = false
+            useWideViewPort = false
+            builtInZoomControls = false
         }
         b.web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
             override fun onPageFinished(view: WebView?, url: String?) {
                 b.progress.hide()
                 b.btnPrintPage.isEnabled = true
+                if (auto && !printed) {
+                    // Give images/fonts a moment to paint before capturing.
+                    b.web.postDelayed({ if (!isFinishing) printPage() }, 700)
+                }
             }
         }
         b.btnPrintPage.isEnabled = false
-        b.web.loadUrl(url)
-
         b.btnPrintPage.setOnClickListener { printPage() }
+
+        if (!html.isNullOrBlank()) {
+            b.web.loadDataWithBaseURL(url ?: "https://cyberprint.local/", html, "text/html", "utf-8", null)
+        } else {
+            b.web.loadUrl(url!!)
+        }
     }
 
     private fun printPage() {
@@ -68,16 +103,17 @@ class WebPrintActivity : AppCompatActivity() {
         val srcW = web.width
         if (srcW <= 0 || web.contentHeight <= 0) {
             Toast.makeText(this, R.string.nothing_to_print, Toast.LENGTH_SHORT).show()
+            if (auto) finish()
             return
         }
+        printed = true
         b.btnPrintPage.isEnabled = false
         b.progress.show()
 
-        val dots = prefs.dots
         @Suppress("DEPRECATION")
         val srcH = (web.contentHeight * web.scale).toInt()
             .coerceAtMost(MAX_CAPTURE_HEIGHT_PX)
-            .coerceAtLeast(web.height)
+            .coerceAtLeast(1)
         // Draw directly at printer width to keep the bitmap small.
         val scale = dots.toFloat() / srcW
         val bmp = Bitmap.createBitmap(dots, (srcH * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
@@ -85,10 +121,14 @@ class WebPrintActivity : AppCompatActivity() {
         canvas.drawColor(Color.WHITE)
         canvas.scale(scale, scale)
         web.draw(canvas)
+        AppLog.i("WebPrint", "captured ${bmp.width}x${bmp.height} from ${srcW}x$srcH")
 
         lifecycleScope.launch {
             val r = withContext(Dispatchers.IO) {
-                runCatching { PrintPipeline(this@WebPrintActivity).printBitmaps(listOf(bmp), dots) }
+                runCatching {
+                    val pipeline = PrintPipeline(this@WebPrintActivity)
+                    repeat(copies) { pipeline.printBitmaps(listOf(bmp), dots) }
+                }
             }
             bmp.recycle()
             b.progress.hide()
@@ -97,7 +137,9 @@ class WebPrintActivity : AppCompatActivity() {
                 Toast.makeText(this@WebPrintActivity, R.string.status_done, Toast.LENGTH_SHORT).show()
                 finish()
             }.onFailure {
+                AppLog.e("WebPrint", "print failed", it)
                 Toast.makeText(this@WebPrintActivity, getString(R.string.status_error, it.message), Toast.LENGTH_LONG).show()
+                if (auto) finish()
             }
         }
     }

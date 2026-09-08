@@ -76,6 +76,37 @@ The Bluetooth link worked and the data was accepted; the printer ignored it.
 
 **Output too light / too dark** → adjust **Darkness**. Enable **Dithering** for photos and logos; leave it off for text.
 
+## One-tap printing from your own web app (no print dialog)
+
+Some ROMs (Tecno/Infinix HiOS, MIUI, …) block third-party print services from the system print dialog. CyberPrint therefore also exposes a deep link that any web page can open. The tap launches the app directly, prints, and returns — no print dialog, no printer picker, nothing the ROM can block.
+
+```
+cyberprint://print?html=<base64url HTML>&b64=1&width=80&copies=1
+cyberprint://print?url=<page URL>            # load a page and print it
+cyberprint://print?pdf=<PDF URL>             # download a PDF and print it
+cyberprint://print?text=<text>               # plain text
+```
+
+From Chrome use the `intent:` form so users without the app land on the download page:
+
+```html
+<div id="invoice"> … your receipt markup … </div>
+<button onclick="printInvoice(80)">Print</button>
+<script>
+function printInvoice(widthMm) {
+  var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
+             /* inline the CSS your receipt needs */ '' +
+             '</style></head><body>' + document.getElementById('invoice').outerHTML + '</body></html>';
+  var b64 = btoa(unescape(encodeURIComponent(html))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  var fallback = encodeURIComponent('https://github.com/mohammad-sharif99/CyberPrint/releases/latest');
+  location.href = 'intent://print?html=' + b64 + '&b64=1&width=' + widthMm +
+                  '#Intent;scheme=cyberprint;package=com.cyberlap.btprint;S.browser_fallback_url=' + fallback + ';end';
+}
+</script>
+```
+
+The page is laid out at the paper's physical width (58 mm → 219 CSS px, 80 mm → 302 CSS px), so receipt CSS prints 1:1. Live demo: **https://mohammad-sharif99.github.io/CyberPrint/demo.html**
+
 ## Building from source
 
 Requirements: JDK 17, Android SDK with platform 35 and build-tools 35.

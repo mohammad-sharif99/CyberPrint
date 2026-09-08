@@ -61,6 +61,19 @@
         </activity>
 
         <activity
+            android:name=".LinkPrintActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.CyberPrint.Transparent">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cyberprint" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name=".LogActivity"
             android:exported="false"
             android:label="@string/log_title" />
