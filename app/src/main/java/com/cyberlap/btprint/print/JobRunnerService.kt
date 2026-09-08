@@ -87,7 +87,9 @@ class JobRunnerService : Service() {
         }
         if (intent?.action == ACTION_READY) {
             readyMode = true
-            AppLog.i("Runner", "always-ready mode on")
+            AppLog.i("Runner", "always-ready mode on (pid=${android.os.Process.myPid()})")
+            handler.removeCallbacks(heartbeat)
+            handler.postDelayed(heartbeat, 60_000)
         }
         startInForeground()
         if (intent?.action == ACTION_KEEPALIVE) {
@@ -105,6 +107,26 @@ class JobRunnerService : Service() {
             }, "cyberprint-runner").also { it.start() }
         }
         return if (readyMode) START_STICKY else START_NOT_STICKY
+    }
+
+    private val heartbeat = object : Runnable {
+        override fun run() {
+            if (!readyMode) return
+            AppLog.i("Runner", "alive (pid=${android.os.Process.myPid()})")
+            handler.postDelayed(this, 60_000)
+        }
+    }
+
+    override fun onDestroy() {
+        AppLog.i("Runner", "service destroyed (readyMode=$readyMode)")
+        handler.removeCallbacks(heartbeat)
+        super.onDestroy()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        AppLog.i("Runner", "task removed (app swiped away)")
+        if (readyMode) startReady(applicationContext)
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun stopIfIdle() {

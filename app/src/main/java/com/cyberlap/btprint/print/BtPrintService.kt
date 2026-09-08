@@ -63,7 +63,11 @@ class BtPrintService : PrintService() {
         AppLog.i(TAG, "service created")
     }
 
+    override fun onConnected() { super.onConnected(); AppLog.i(TAG, "spooler CONNECTED to service") }
+    override fun onDisconnected() { AppLog.i(TAG, "spooler disconnected"); super.onDisconnected() }
+
     override fun onCreatePrinterDiscoverySession(): PrinterDiscoverySession = object : PrinterDiscoverySession() {
+        init { AppLog.i(TAG, "discovery session created") }
         override fun onStartPrinterDiscovery(priorityList: MutableList<PrinterId>) {
             AppLog.i(TAG, "discovery start (priority=${priorityList.size})")
             JobRunnerService.keepAlive(this@BtPrintService)
